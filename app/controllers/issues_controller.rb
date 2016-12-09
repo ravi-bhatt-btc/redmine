@@ -460,12 +460,9 @@ class IssuesController < ApplicationController
   # The new issue will be copied from an existing one if copy_from parameter is given
   def build_new_issue_from_params
     @issue = Issue.new
-
     if (params[:issue].present? and params[:issue][:parent_issue_id].blank? and params[:issue][:sprint_id].present? and params[:issue][:tracker_id] != 3)
       params[:issue][:parent_issue_id] = Issue.find_by(sprint_id: params[:issue][:sprint_id], tracker_id: 3).root_id.to_s
-      
-    end
-    
+    end 
     if params[:copy_from]
       begin
         @issue.init_journal(User.current)
