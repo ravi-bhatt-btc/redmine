@@ -175,6 +175,11 @@ function buildFilterRow(field, operator, values) {
       if ($.isArray(filterValue)) {
         option.val(filterValue[1]).text(filterValue[0]);
         if ($.inArray(filterValue[1], values) > -1) {option.attr('selected', true);}
+        if (filterValue.length == 3) {
+          var optgroup = select.find('optgroup').filter(function(){return $(this).attr('label') == filterValue[2]});
+          if (!optgroup.length) {optgroup = $('<optgroup>').attr('label', filterValue[2]);}
+          option = optgroup.append(option);
+        }
       } else {
         option.val(filterValue).text(filterValue);
         if ($.inArray(filterValue, values) > -1) {option.attr('selected', true);}
@@ -566,6 +571,69 @@ function observeSearchfield(fieldId, targetId, url) {
     $this.bind('keyup click mousemove', reset);
   });
 }
+
+$(document).ready(function(){
+  $(".drdn .autocomplete").val('');
+
+  $(".drdn-trigger").click(function(e){
+    var drdn = $(this).closest(".drdn");
+    if (drdn.hasClass("expanded")) {
+      drdn.removeClass("expanded");
+    } else {
+      $(".drdn").removeClass("expanded");
+      drdn.addClass("expanded");
+      if (!isMobile()) {
+        drdn.find(".autocomplete").focus();
+      }
+      e.stopPropagation();
+    }
+  });
+  $(document).click(function(e){
+    if ($(e.target).closest(".drdn").length < 1) {
+      $(".drdn.expanded").removeClass("expanded");
+    } 
+  });
+
+  observeSearchfield('projects-quick-search', null, $('#projects-quick-search').data('automcomplete-url'));
+
+  $(".drdn-content").keydown(function(event){
+    var items = $(this).find(".drdn-items");
+    var focused = items.find("a:focus");
+    switch (event.which) {
+    case 40: //down
+      if (focused.length > 0) {
+        focused.nextAll("a").first().focus();;
+      } else {
+        items.find("a").first().focus();;
+      }
+      event.preventDefault();
+      break;
+    case 38: //up
+      if (focused.length > 0) {
+        var prev = focused.prevAll("a");
+        if (prev.length > 0) {
+          prev.first().focus();
+        } else {
+          $(this).find(".autocomplete").focus();
+        }
+        event.preventDefault();
+      }
+      break;
+    case 35: //end
+      if (focused.length > 0) {
+        focused.nextAll("a").last().focus();
+        event.preventDefault();
+      }
+      break;
+    case 36: //home
+      if (focused.length > 0) {
+        focused.prevAll("a").last().focus();
+        event.preventDefault();
+      }
+      break;
+    }
+  });
+});
 
 function beforeShowDatePicker(input, inst) {
   var default_date = null;

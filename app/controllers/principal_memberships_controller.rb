@@ -17,10 +17,11 @@
 
 class PrincipalMembershipsController < ApplicationController
   layout 'admin'
+  self.main_menu = false
 
-  before_filter :require_admin
-  before_filter :find_principal, :only => [:new, :create]
-  before_filter :find_membership, :only => [:update, :destroy]
+  before_action :require_admin
+  before_action :find_principal, :only => [:new, :create]
+  before_action :find_membership, :only => [:update, :destroy]
 
   def new
     @projects = Project.active.all

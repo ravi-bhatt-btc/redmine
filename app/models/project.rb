@@ -72,7 +72,7 @@ class Project < ActiveRecord::Base
   validates_uniqueness_of :identifier, :if => Proc.new {|p| p.identifier_changed?}
   validates_length_of :name, :maximum => 255
   validates_length_of :homepage, :maximum => 255
-  validates_length_of :identifier, :in => 1..IDENTIFIER_MAX_LENGTH
+  validates_length_of :identifier, :maximum => IDENTIFIER_MAX_LENGTH
   # downcase letters, digits, dashes but not digits only
   validates_format_of :identifier, :with => /\A(?!\d+$)[a-z0-9\-_]*\z/, :if => Proc.new { |p| p.identifier_changed? }
   # reserved words
@@ -235,11 +235,11 @@ class Project < ActiveRecord::Base
   end
 
   def principals
-    @principals ||= Principal.active.joins(:members).where("#{Member.table_name}.project_id = ?", id).uniq
+    @principals ||= Principal.active.joins(:members).where("#{Member.table_name}.project_id = ?", id).distinct
   end
 
   def users
-    @users ||= User.active.joins(:members).where("#{Member.table_name}.project_id = ?", id).uniq
+    @users ||= User.active.joins(:members).where("#{Member.table_name}.project_id = ?", id).distinct
   end
 
   # Returns the Systemwide and project specific activities
@@ -439,7 +439,11 @@ class Project < ActiveRecord::Base
       joins(projects: :enabled_modules).
       where("#{Project.table_name}.status <> ?", STATUS_ARCHIVED).
       where(:enabled_modules => {:name => 'issue_tracking'}).
+<<<<<<< HEAD
       uniq.
+=======
+      distinct.
+>>>>>>> 49fcec80b7eb42debb749b7eef27b315c137d19f
       sorted
   end
 
@@ -500,17 +504,23 @@ class Project < ActiveRecord::Base
   # Adds user as a project member with the default role
   # Used for when a non-admin user creates a project
   def add_default_member(user)
-    role = Role.givable.find_by_id(Setting.new_project_user_role_id.to_i) || Role.givable.first
+    role = self.class.default_member_role
     member = Member.new(:project => self, :principal => user, :roles => [role])
     self.members << member
     member
+  end
+
+	# Default role that is given to non-admin users that
+	# create a project
+  def self.default_member_role
+    Role.givable.find_by_id(Setting.new_project_user_role_id.to_i) || Role.givable.first
   end
 
   # Deletes all project's members
   def delete_all_members
     me, mr = Member.table_name, MemberRole.table_name
     self.class.connection.delete("DELETE FROM #{mr} WHERE #{mr}.member_id IN (SELECT #{me}.id FROM #{me} WHERE #{me}.project_id = #{id})")
-    Member.delete_all(['project_id = ?', id])
+    Member.where(:project_id => id).delete_all
   end
 
   # Return a Principal scope of users/groups issues can be assigned to
@@ -524,7 +534,7 @@ class Project < ActiveRecord::Base
       active.
       joins(:members => :roles).
       where(:type => types, :members => {:project_id => id}, :roles => {:assignable => true}).
-      uniq.
+      distinct.
       sorted
 
     if tracker
@@ -716,7 +726,17 @@ class Project < ActiveRecord::Base
     'default_version_id'
 
   safe_attributes 'enabled_module_names',
-    :if => lambda {|project, user| project.new_record? || user.allowed_to?(:select_project_modules, project) }
+    :if => lambda {|project, user|
+        if project.new_record?
+          if user.admin?
+            true
+          else
+            default_member_role.has_permission?(:select_project_modules)
+          end
+        else
+          user.allowed_to?(:select_project_modules, project)
+        end
+      }
 
   safe_attributes 'inherit_members',
     :if => lambda {|project, user| project.parent.nil? || project.parent.visible?(user)}
@@ -800,8 +820,11 @@ class Project < ActiveRecord::Base
   end
 
   # Yields the given block for each project with its level in the tree
-  def self.project_tree(projects, &block)
+  def self.project_tree(projects, options={}, &block)
     ancestors = []
+    if options[:init_level] && projects.first
+      ancestors = projects.first.ancestors.to_a
+    end
     projects.sort_by(&:lft).each do |project|
       while (ancestors.any? && !project.is_descendant_of?(ancestors.last))
         ancestors.pop
@@ -825,7 +848,7 @@ class Project < ActiveRecord::Base
   end
 
   def remove_inherited_member_roles
-    member_roles = memberships.map(&:member_roles).flatten
+    member_roles = MemberRole.where(:member_id => membership_ids).to_a
     member_role_ids = member_roles.map(&:id)
     member_roles.each do |member_role|
       if member_role.inherited_from && !member_role_ids.include?(member_role.inherited_from)

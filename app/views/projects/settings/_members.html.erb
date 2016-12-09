@@ -1,5 +1,5 @@
 <% roles = Role.find_all_givable
-   members = @project.memberships.active.includes(:member_roles, :roles, :principal).to_a.sort %>
+   members = @project.memberships.active.sorted.to_a %>
 
 <p><%= link_to l(:label_member_new), new_project_membership_path(@project), :remote => true, :class => "icon icon-add" %></p>
 
@@ -17,7 +17,7 @@
   <% members.each do |member| %>
   <% next if member.new_record? %>
   <tr id="member-<%= member.id %>" class="<%= cycle 'odd', 'even' %> member">
-  <td class="name <%= member.principal.class.name.downcase %>"><%= link_to_user member.principal %></td>
+  <td class="name icon icon-<%= member.principal.class.name.downcase %>"><%= link_to_user member.principal %></td>
   <td class="roles">
     <span id="member-<%= member.id %>-roles"><%= member.roles.sort.collect(&:to_s).join(', ') %></span>
       <%= form_for(member,

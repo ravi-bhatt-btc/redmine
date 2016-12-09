@@ -766,7 +766,7 @@ es:
   setting_mail_handler_api_enabled: Activar SW para mensajes entrantes
   setting_mail_handler_api_key: Clave de la API
   setting_per_page_options: Objetos por página
-  setting_plain_text_mail: sólo texto plano (no HTML)
+  setting_plain_text_mail: Sólo texto plano (no HTML)
   setting_protocol: Protocolo
   setting_self_registration: Registro permitido
   setting_sequential_project_identifiers: Generar identificadores de proyecto
@@ -947,7 +947,7 @@ es:
   button_edit_associated_wikipage: "Editar paginas Wiki asociadas: %{page_title}"
   field_text: Campo de texto
   label_user_mail_option_only_owner: Solo para objetos que soy propietario
-  setting_default_notification_option: Opcion de notificacion por defecto
+  setting_default_notification_option: Opción de notificación por defecto
   label_user_mail_option_only_my_events: Solo para objetos que soy seguidor o estoy involucrado
   label_user_mail_option_only_assigned: Solo para objetos que estoy asignado
   label_user_mail_option_none: Sin eventos
@@ -1236,3 +1236,12 @@ es:
   setting_new_item_menu_tab: Pestaña de creación de nuevos objetos en el menú de cada proyecto
   label_new_object_tab_enabled: Mostrar la lista desplegable "+"
   error_no_projects_with_tracker_allowed_for_new_issue: Ningún proyecto dispone de un tipo sobre el cual puedas crear una petición
+<<<<<<< HEAD
+=======
+  field_textarea_font: Fuente usada en las áreas de texto
+  label_font_default: Fuente por defecto
+  label_font_monospace: Fuente Monospaced
+  label_font_proportional: Fuente Proportional
+  setting_timespan_format: Time span format
+  label_table_of_contents: Table of contents
+>>>>>>> 49fcec80b7eb42debb749b7eef27b315c137d19f

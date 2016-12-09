@@ -19,13 +19,14 @@
 
 require File.expand_path('../../../test_helper', __FILE__)
 
-class ApplicationHelperTest < ActionView::TestCase
+class ApplicationHelperTest < Redmine::HelperTest
   include Redmine::I18n
   include ERB::Util
   include Rails.application.routes.url_helpers
 
-  fixtures :projects, :roles, :enabled_modules, :users,
-           :email_addresses,
+  fixtures :projects, :enabled_modules,
+           :users, :email_addresses,
+           :members, :member_roles, :roles,
            :repositories, :changesets,
            :projects_trackers,
            :trackers, :issue_statuses, :issues, :versions, :documents,
@@ -1091,6 +1092,8 @@ EXPECTED
   end
 
   def test_table_of_content
+    set_language_if_valid 'en'
+
     raw = <<-RAW
 {{toc}}
 
@@ -1123,6 +1126,7 @@ h2. "Project Name !/attachments/1234/logo_small.gif! !/attachments/5678/logo_2.p
 RAW
 
     expected =  '<ul class="toc">' +
+                  '<li><strong>Table of contents</strong></li>' +
                   '<li><a href="#Title">Title</a>' +
                     '<ul>' +
                       '<li><a href="#Subtitle-with-a-Wiki-link">Subtitle with a Wiki link</a></li>' +
@@ -1152,6 +1156,8 @@ RAW
   end
 
   def test_table_of_content_should_generate_unique_anchors
+    set_language_if_valid 'en'
+
     raw = <<-RAW
 {{toc}}
 
@@ -1163,6 +1169,7 @@ h2. Subtitle
 RAW
 
     expected =  '<ul class="toc">' +
+                  '<li><strong>Table of contents</strong></li>' +
                   '<li><a href="#Title">Title</a>' +
                     '<ul>' +
                       '<li><a href="#Subtitle">Subtitle</a></li>' +
@@ -1179,6 +1186,8 @@ RAW
   end
 
   def test_table_of_content_should_contain_included_page_headings
+    set_language_if_valid 'en'
+
     raw = <<-RAW
 {{toc}}
 
@@ -1188,6 +1197,7 @@ h1. Included
 RAW
 
     expected = '<ul class="toc">' +
+               '<li><strong>Table of contents</strong></li>' +
                '<li><a href="#Included">Included</a></li>' +
                '<li><a href="#Child-page-1">Child page 1</a></li>' +
                '</ul>'
@@ -1537,5 +1547,30 @@ RAW
     result = truncate_single_line_raw("#{ja}\n#{ja}\n#{ja}", 10)
     assert_equal "#{ja} #{ja}...", result
     assert !result.html_safe?
+  end
+
+  def test_back_url_should_remove_utf8_checkmark_from_referer
+    stubs(:request).returns(stub(:env => {'HTTP_REFERER' => "/path?utf8=\u2713&foo=bar"}))
+    assert_equal "/path?foo=bar", back_url
+  end
+
+  def test_hours_formatting
+    set_language_if_valid 'en'
+
+    with_settings :timespan_format => 'minutes' do
+      assert_equal '0:45', format_hours(0.75)
+      assert_equal '0:45 h', l_hours_short(0.75)
+      assert_equal '0:45 hour', l_hours(0.75)
+    end
+    with_settings :timespan_format => 'decimal' do
+      assert_equal '0.75', format_hours(0.75)
+      assert_equal '0.75 h', l_hours_short(0.75)
+      assert_equal '0.75 hour', l_hours(0.75)
+    end
+  end
+
+  def test_html_hours
+    assert_equal '<span class="hours hours-int">0</span><span class="hours hours-dec">:45</span>', html_hours('0:45')
+    assert_equal '<span class="hours hours-int">0</span><span class="hours hours-dec">.75</span>', html_hours('0.75')
   end
 end

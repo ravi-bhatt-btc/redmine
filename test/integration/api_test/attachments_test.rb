@@ -81,7 +81,7 @@ class Redmine::ApiTest::AttachmentsTest < Redmine::ApiTest::Base
     assert_response :success
   end
 
-  test "Destroy /attachments/:id.xml should return ok and deleted Attachment" do
+  test "DELETE /attachments/:id.xml should return ok and delete Attachment" do
     assert_difference 'Attachment.count', -1 do
       delete '/attachments/7.xml', {}, credentials('jsmith')
       assert_response :ok
@@ -90,13 +90,36 @@ class Redmine::ApiTest::AttachmentsTest < Redmine::ApiTest::Base
     assert_nil Attachment.find_by_id(7)
   end
 
-  test "Destroy /attachments/:id.json should return ok and deleted Attachment" do
+  test "DELETE /attachments/:id.json should return ok and delete Attachment" do
     assert_difference 'Attachment.count', -1 do
       delete '/attachments/7.json', {}, credentials('jsmith')
       assert_response :ok
       assert_equal '', response.body
     end
     assert_nil Attachment.find_by_id(7)
+  end
+
+  test "PATCH /attachments/:id.json should update the attachment" do
+    patch '/attachments/7.json',
+      {:attachment => {:filename => 'renamed.zip', :description => 'updated'}},
+      credentials('jsmith')
+
+    assert_response :ok
+    assert_equal 'application/json', response.content_type
+    attachment = Attachment.find(7)
+    assert_equal 'renamed.zip', attachment.filename
+    assert_equal 'updated', attachment.description
+  end
+
+  test "PATCH /attachments/:id.json with failure should return the errors" do
+    patch '/attachments/7.json',
+      {:attachment => {:filename => '', :description => 'updated'}},
+      credentials('jsmith')
+
+    assert_response 422
+    assert_equal 'application/json', response.content_type
+    json = ActiveSupport::JSON.decode(response.body)
+    assert_include "File cannot be blank", json['errors']
   end
 
   test "POST /uploads.xml should return the token" do
@@ -111,9 +134,12 @@ class Redmine::ApiTest::AttachmentsTest < Redmine::ApiTest::Base
     assert_kind_of Hash, xml['upload']
     token = xml['upload']['token']
     assert_not_nil token
+    attachment_id = xml['upload']['id']
+    assert_not_nil attachment_id
 
     attachment = Attachment.order('id DESC').first
     assert_equal token, attachment.token
+    assert_equal attachment_id, attachment.id.to_s
     assert_nil attachment.container
     assert_equal 2, attachment.author_id
     assert_equal 'File content'.size, attachment.filesize

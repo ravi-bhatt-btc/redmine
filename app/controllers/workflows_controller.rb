@@ -17,8 +17,9 @@
 
 class WorkflowsController < ApplicationController
   layout 'admin'
+  self.main_menu = false
 
-  before_filter :require_admin
+  before_action :require_admin
 
   def index
     @roles = Role.sorted.select(&:consider_workflow?)

@@ -197,6 +197,8 @@ module ApplicationHelper
       l(:general_text_No)
     when 'Issue'
       object.visible? && html ? link_to_issue(object) : "##{object.id}"
+    when 'Attachment'
+      html ? link_to_attachment(object, :download => true) : object.filename
     when 'CustomValue', 'CustomFieldValue'
       if object.custom_field
         f = object.custom_field.format.formatted_custom_value(self, object, html)
@@ -230,8 +232,9 @@ module ApplicationHelper
     link_to(name, "#", :onclick => onclick)
   end
 
+  # Used to format item titles on the activity view
   def format_activity_title(text)
-    h(truncate_single_line_raw(text, 100))
+    text
   end
 
   def format_activity_day(date)
@@ -327,22 +330,40 @@ module ApplicationHelper
       content_tag 'p', l(:label_no_data), :class => "nodata"
     end
   end
+ 
+  # Returns an array of projects that are displayed in the quick-jump box
+  def projects_for_jump_box(user=User.current)
+    if user.logged?
+      user.projects.active.select(:id, :name, :identifier, :lft, :rgt).to_a
+    else
+      []
+    end
+  end
+
+  def render_projects_for_jump_box(projects, selected=nil)
+    s = ''.html_safe
+    project_tree(projects) do |project, level|
+      padding = level * 16
+      text = content_tag('span', project.name, :style => "padding-left:#{padding}px;")
+      s << link_to(text, project_path(project, :jump => current_menu_item), :title => project.name, :class => (project == selected ? 'selected' : nil))
+    end
+    s
+  end
 
   # Renders the project quick-jump box
   def render_project_jump_box
-    return unless User.current.logged?
-    projects = User.current.projects.active.select(:id, :name, :identifier, :lft, :rgt).to_a
+    projects = projects_for_jump_box(User.current)
     if projects.any?
-      options =
-        ("<option value=''>#{ l(:label_jump_to_a_project) }</option>" +
-         '<option value="" disabled="disabled">---</option>').html_safe
+      text = @project.try(:name) || l(:label_jump_to_a_project)
+      trigger = content_tag('span', text, :class => 'drdn-trigger')
+      q = text_field_tag('q', '', :id => 'projects-quick-search', :class => 'autocomplete', :data => {:automcomplete_url => projects_path(:format => 'js')})
+      content = content_tag('div',
+            content_tag('div', q, :class => 'quick-search') + 
+            content_tag('div', render_projects_for_jump_box(projects, @project), :class => 'drdn-items selection'),
+          :class => 'drdn-content'
+        )
 
-      options << project_tree_options_for_select(projects, :selected => @project) do |p|
-        { :value => project_path(:id => p, :jump => current_menu_item) }
-      end
-
-      content_tag( :span, nil, :class => 'jump-box-arrow') +
-      select_tag('project_quick_jump_box', options, :onchange => 'if (this.value != \'\') { window.location = this.value; }')
+      content_tag('span', trigger + content, :id => "project-jump", :class => "drdn")
     end
   end
 
@@ -371,8 +392,8 @@ module ApplicationHelper
   # Yields the given block for each project with its level in the tree
   #
   # Wrapper for Project#project_tree
-  def project_tree(projects, &block)
-    Project.project_tree(projects, &block)
+  def project_tree(projects, options={}, &block)
+    Project.project_tree(projects, options, &block)
   end
 
   def principals_check_box_tags(name, principals)
@@ -423,7 +444,7 @@ module ApplicationHelper
   end
 
   def html_hours(text)
-    text.gsub(%r{(\d+)\.(\d+)}, '<span class="hours hours-int">\1</span><span class="hours hours-dec">.\2</span>').html_safe
+    text.gsub(%r{(\d+)([\.:])(\d+)}, '<span class="hours hours-int">\1</span><span class="hours hours-dec">\2\3</span>').html_safe
   end
 
   def authoring(created, author, options={})
@@ -561,6 +582,9 @@ module ApplicationHelper
     css << 'project-' + @project.identifier if @project && @project.identifier.present?
     css << 'controller-' + controller_name
     css << 'action-' + action_name
+    if UserPreference::TEXTAREA_FONT_OPTIONS.include?(User.current.pref.textarea_font)
+      css << "textarea-#{User.current.pref.textarea_font}"
+    end
     css.join(' ')
   end
 
@@ -1006,7 +1030,7 @@ module ApplicationHelper
         div_class = 'toc'
         div_class << ' right' if right_align
         div_class << ' left' if left_align
-        out = "<ul class=\"#{div_class}\"><li>"
+        out = "<ul class=\"#{div_class}\"><li><strong>#{l :label_table_of_contents}</strong></li><li>"
         root = headings.map(&:first).min
         current = root
         started = false
@@ -1109,6 +1133,11 @@ module ApplicationHelper
     url = params[:back_url]
     if url.nil? && referer = request.env['HTTP_REFERER']
       url = CGI.unescape(referer.to_s)
+      # URLs that contains the utf8=[checkmark] parameter added by Rails are
+      # parsed as invalid by URI.parse so the redirect to the back URL would
+      # not be accepted (ApplicationController#validate_back_url would return
+      # false)
+      url.gsub!(/(\?|&)utf8=\u2713&?/, '\1')
     end
     url
   end
@@ -1154,7 +1183,7 @@ module ApplicationHelper
     end
   end
 
-  def context_menu(url)
+  def context_menu
     unless @context_menu_included
       content_for :header_tags do
         javascript_include_tag('context_menu') +
@@ -1167,7 +1196,7 @@ module ApplicationHelper
       end
       @context_menu_included = true
     end
-    javascript_tag "contextMenuInit('#{ url_for(url) }')"
+    nil
   end
 
   def calendar_for(field_id)
@@ -1359,9 +1388,5 @@ module ApplicationHelper
     helper = Redmine::WikiFormatting.helper_for(Setting.text_formatting)
     extend helper
     return self
-  end
-
-  def link_to_content_update(text, url_params = {}, html_options = {})
-    link_to(text, url_params, html_options)
   end
 end

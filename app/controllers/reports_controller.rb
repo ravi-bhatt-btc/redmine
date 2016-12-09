@@ -17,7 +17,7 @@
 
 class ReportsController < ApplicationController
   menu_item :issues
-  before_filter :find_project, :authorize, :find_issue_statuses
+  before_action :find_project, :authorize, :find_issue_statuses
 
   def issue_report
     @trackers = @project.rolled_up_trackers(false).visible
@@ -76,14 +76,8 @@ class ReportsController < ApplicationController
       @rows = @project.descendants.visible
       @data = Issue.by_subproject(@project) || []
       @report_title = l(:field_subproject)
-    end
-
-    respond_to do |format|
-      if @field
-        format.html {}
-      else
-        format.html { redirect_to :action => 'issue_report', :id => @project }
-      end
+    else
+      render_404
     end
   end
 

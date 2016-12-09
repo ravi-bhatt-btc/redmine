@@ -16,6 +16,8 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 class Role < ActiveRecord::Base
+  include Redmine::SafeAttributes
+
   # Custom coder for the permissions attribute that should be an
   # array of symbols. Rails 3 uses Psych which can be *unbelievably*
   # slow on some platforms (eg. mingw32).
@@ -89,12 +91,25 @@ class Role < ActiveRecord::Base
     :in => TIME_ENTRIES_VISIBILITY_OPTIONS.collect(&:first),
     :if => lambda {|role| role.respond_to?(:time_entries_visibility) && role.time_entries_visibility_changed?}
 
+  safe_attributes 'name',
+      'assignable',
+      'position',
+      'issues_visibility',
+      'users_visibility',
+      'time_entries_visibility',
+      'all_roles_managed',
+      'managed_role_ids',
+      'permissions',
+      'permissions_all_trackers',
+      'permissions_tracker_ids'
+
   # Copies attributes from another role, arg can be an id or a Role
   def copy_from(arg, options={})
     return unless arg.present?
     role = arg.is_a?(Role) ? arg : Role.find_by_id(arg.to_s)
     self.attributes = role.attributes.dup.except("id", "name", "position", "builtin", "permissions")
     self.permissions = role.permissions.dup
+    self.managed_role_ids = role.managed_role_ids.dup
     self
   end
 
@@ -279,9 +294,9 @@ private
   end
 
   def self.find_or_create_system_role(builtin, name)
-    role = where(:builtin => builtin).first
+    role = unscoped.where(:builtin => builtin).first
     if role.nil?
-      role = create(:name => name) do |r|
+      role = unscoped.create(:name => name) do |r|
         r.builtin = builtin
       end
       raise "Unable to create the #{name} role (#{role.errors.full_messages.join(',')})." if role.new_record?

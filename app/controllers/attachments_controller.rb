@@ -16,17 +16,22 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 class AttachmentsController < ApplicationController
-  before_filter :find_attachment, :only => [:show, :download, :thumbnail, :destroy]
-  before_filter :find_editable_attachments, :only => [:edit, :update]
-  before_filter :file_readable, :read_authorize, :only => [:show, :download, :thumbnail]
-  before_filter :delete_authorize, :only => :destroy
-  before_filter :authorize_global, :only => :upload
+  before_action :find_attachment, :only => [:show, :download, :thumbnail, :update, :destroy]
+  before_action :find_editable_attachments, :only => [:edit_all, :update_all]
+  before_action :file_readable, :read_authorize, :only => [:show, :download, :thumbnail]
+  before_action :update_authorize, :only => :update
+  before_action :delete_authorize, :only => :destroy
+  before_action :authorize_global, :only => :upload
 
   # Disable check for same origin requests for JS files, i.e. attachments with
   # MIME type text/javascript.
   skip_after_filter :verify_same_origin_request, :only => :download
 
+<<<<<<< HEAD
   accept_api_auth :show, :download, :thumbnail, :upload, :destroy
+=======
+  accept_api_auth :show, :download, :thumbnail, :upload, :update, :destroy
+>>>>>>> 49fcec80b7eb42debb749b7eef27b315c137d19f
 
   def show
     respond_to do |format|
@@ -77,7 +82,7 @@ class AttachmentsController < ApplicationController
       end
     else
       # No thumbnail for the attachment or thumbnail could not be created
-      render :nothing => true, :status => 404
+      head 404
     end
   end
 
@@ -85,7 +90,7 @@ class AttachmentsController < ApplicationController
     # Make sure that API users get used to set this content type
     # as it won't trigger Rails' automatic parsing of the request body for parameters
     unless request.content_type == 'application/octet-stream'
-      render :nothing => true, :status => 406
+      head 406
       return
     end
 
@@ -107,17 +112,34 @@ class AttachmentsController < ApplicationController
     end
   end
 
-  def edit
+  # Edit all the attachments of a container
+  def edit_all
   end
 
-  def update
+  # Update all the attachments of a container
+  def update_all
     if params[:attachments].is_a?(Hash)
       if Attachment.update_attachments(@attachments, params[:attachments])
         redirect_back_or_default home_path
         return
       end
     end
-    render :action => 'edit'
+    render :action => 'edit_all'
+  end
+
+  def update
+    @attachment.safe_attributes = params[:attachment]
+    saved = @attachment.save
+
+    respond_to do |format|
+      format.api {
+        if saved
+          render_api_ok
+        else
+          render_validation_errors(@attachment)
+        end
+      }
+    end
   end
 
   def destroy
@@ -182,6 +204,10 @@ class AttachmentsController < ApplicationController
 
   def read_authorize
     @attachment.visible? ? true : deny_access
+  end
+
+  def update_authorize
+    @attachment.editable? ? true : deny_access
   end
 
   def delete_authorize

@@ -16,6 +16,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 class CustomField < ActiveRecord::Base
+  include Redmine::SafeAttributes
   include Redmine::SubclassFactory
 
   has_many :enumerations,
@@ -62,10 +63,33 @@ class CustomField < ActiveRecord::Base
       where(:visible => true)
     end
   }
-
   def visible_by?(project, user=User.current)
     visible? || user.admin?
   end
+
+  safe_attributes 'name',
+    'field_format',
+    'possible_values',
+    'regexp',
+    'min_lnegth',
+    'max_length',
+    'is_required',
+    'is_for_all',
+    'is_filter',
+    'position',
+    'searchable',
+    'default_value',
+    'editable',
+    'visible',
+    'multiple',
+    'description',
+    'role_ids',
+    'url_pattern',
+    'text_formatting',
+    'edit_tag_style',
+    'user_role',
+    'version_status',
+    'extensions_allowed'
 
   def format
     @format ||= Redmine::FieldFormat.find(field_format)
@@ -139,6 +163,10 @@ class CustomField < ActiveRecord::Base
     else
       self.possible_values = arg.to_s.split(/[\n\r]+/)
     end
+  end
+
+  def set_custom_field_value(custom_field_value, value)
+    format.set_custom_field_value(self, custom_field_value, value)
   end
 
   def cast_value(value)
@@ -221,7 +249,7 @@ class CustomField < ActiveRecord::Base
 
   # to move in project_custom_field
   def self.for_all
-    where(:is_for_all => true).order('position').to_a
+    where(:is_for_all => true).order(:position).to_a
   end
 
   def type_name
@@ -232,20 +260,23 @@ class CustomField < ActiveRecord::Base
   # or an empty array if value is a valid value for the custom field
   def validate_custom_value(custom_value)
     value = custom_value.value
-    errs = []
-    if value.is_a?(Array)
-      if !multiple?
-        errs << ::I18n.t('activerecord.errors.messages.invalid')
-      end
-      if is_required? && value.detect(&:present?).nil?
-        errs << ::I18n.t('activerecord.errors.messages.blank')
-      end
-    else
-      if is_required? && value.blank?
-        errs << ::I18n.t('activerecord.errors.messages.blank')
+    errs = format.validate_custom_value(custom_value)
+
+    unless errs.any?
+      if value.is_a?(Array)
+        if !multiple?
+          errs << ::I18n.t('activerecord.errors.messages.invalid')
+        end
+        if is_required? && value.detect(&:present?).nil?
+          errs << ::I18n.t('activerecord.errors.messages.blank')
+        end
+      else
+        if is_required? && value.blank?
+          errs << ::I18n.t('activerecord.errors.messages.blank')
+        end
       end
     end
-    errs += format.validate_custom_value(custom_value)
+
     errs
   end
 
@@ -257,6 +288,10 @@ class CustomField < ActiveRecord::Base
   # Returns true if value is a valid value for the custom field
   def valid_field_value?(value)
     validate_field_value(value).empty?
+  end
+
+  def after_save_custom_value(custom_value)
+    format.after_save_custom_value(self, custom_value)
   end
 
   def format_in?(*args)

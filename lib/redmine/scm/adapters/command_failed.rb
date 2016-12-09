@@ -16,16 +16,9 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 module Redmine
-  module Views
-    module MyPage
-      module Block
-        def self.additional_blocks
-          @@additional_blocks ||= Dir.glob("#{Redmine::Plugin.directory}/*/app/views/my/blocks/_*.{rhtml,erb}").inject({}) do |h,file|
-            name = File.basename(file).split('.').first.gsub(/^_/, '')
-            h[name] = name.to_sym
-            h
-          end
-        end
+  module Scm
+    module Adapters
+      class CommandFailed < StandardError #:nodoc:
       end
     end
   end

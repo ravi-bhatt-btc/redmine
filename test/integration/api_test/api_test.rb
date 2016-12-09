@@ -44,4 +44,11 @@ class Redmine::ApiTest::ApiTest < Redmine::ApiTest::Base
     get '/users/1.xml', {}, credentials('admin')
     assert_include '<created_on>2006-07-19T17:12:21Z</created_on>', response.body
   end
+
+  def test_head_response_should_have_empty_body
+    put '/users/7.xml', {:user => {:login => 'foo'}}, credentials('admin')
+
+    assert_response :ok
+    assert_equal '', response.body
+  end
 end

@@ -479,7 +479,7 @@ es-PA:
   label_issue_category: Categoría de las incidencias
   label_issue_category_new: Nueva categoría
   label_issue_category_plural: Categorías de las incidencias
-  label_issue_new: Nueva incidencias
+  label_issue_new: Nueva incidencia
   label_issue_plural: Incidencias
   label_issue_status: Estado de la incidencias
   label_issue_status_new: Nuevo estado
@@ -1238,3 +1238,12 @@ es-PA:
   setting_new_item_menu_tab: Pestaña de creación de nuevos objetos en el menú de cada proyecto
   label_new_object_tab_enabled: Mostrar la lista desplegable "+"
   error_no_projects_with_tracker_allowed_for_new_issue: Ningún proyecto dispone de un tipo sobre el cual puedas crear una petición
+<<<<<<< HEAD
+=======
+  field_textarea_font: Fuente usada en las áreas de texto
+  label_font_default: Fuente por defecto
+  label_font_monospace: Fuente Monospaced
+  label_font_proportional: Fuente Proportional
+  setting_timespan_format: Time span format
+  label_table_of_contents: Table of contents
+>>>>>>> 49fcec80b7eb42debb749b7eef27b315c137d19f

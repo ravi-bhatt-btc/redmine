@@ -18,20 +18,15 @@
 class ProjectsController < ApplicationController
   menu_item :overview
   menu_item :settings, :only => :settings
+  menu_item :projects, :only => [:index, :new,  :create]
 
-  before_filter :find_project, :except => [ :index, :list, :new, :create, :copy ]
-  before_filter :authorize, :except => [ :index, :list, :new, :create, :copy, :archive, :unarchive, :destroy]
-  before_filter :authorize_global, :only => [:new, :create]
-  before_filter :require_admin, :only => [ :copy, :archive, :unarchive, :destroy ]
+  before_action :find_project, :except => [ :index, :list, :new, :create, :copy ]
+  before_action :authorize, :except => [ :index, :list, :new, :create, :copy, :archive, :unarchive, :destroy]
+  before_action :authorize_global, :only => [:new, :create]
+  before_action :require_admin, :only => [ :copy, :archive, :unarchive, :destroy ]
   accept_rss_auth :index
   accept_api_auth :index, :show, :create, :update, :destroy
   require_sudo_mode :destroy
-
-  after_filter :only => [:create, :edit, :update, :archive, :unarchive, :destroy] do |controller|
-    if controller.request.post?
-      controller.send :expire_action, :controller => 'welcome', :action => 'robots'
-    end
-  end
 
   helper :custom_fields
   helper :issues
@@ -49,6 +44,13 @@ class ProjectsController < ApplicationController
           scope = scope.active
         end
         @projects = scope.to_a
+      }
+      format.js {
+        if params[:q].present?
+          @projects = Project.visible.like(params[:q]).to_a
+        else
+          @projects = User.current.projects.to_a
+        end
       }
       format.api  {
         @offset, @limit = api_offset_and_limit
@@ -161,6 +163,10 @@ class ProjectsController < ApplicationController
     @issue_category ||= IssueCategory.new
     @member ||= @project.members.new
     @trackers = Tracker.sorted.to_a
+
+    @version_status = params[:version_status] || 'open'
+    @version_name = params[:version_name]
+    @versions = @project.shared_versions.status(@version_status).like(@version_name)
     @wiki ||= @project.wiki || Wiki.new(:project => @project)
   end
 
@@ -198,14 +204,14 @@ class ProjectsController < ApplicationController
     unless @project.archive
       flash[:error] = l(:error_can_not_archive_project)
     end
-    redirect_to admin_projects_path(:status => params[:status])
+    redirect_to_referer_or admin_projects_path(:status => params[:status])
   end
 
   def unarchive
     unless @project.active?
       @project.unarchive
     end
-    redirect_to admin_projects_path(:status => params[:status])
+    redirect_to_referer_or admin_projects_path(:status => params[:status])
   end
 
   def close
