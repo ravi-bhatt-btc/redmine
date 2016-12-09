@@ -329,6 +329,26 @@ class ApplicationController < ActionController::Base
 
   # Find issues with a single :id param or :ids array param
   # Raises a Unauthorized exception if one of the issues is not visible
+  def create_pbi_auto(params)
+    binding.pry
+    begin
+      @continue = !(params[:create_and_continue].nil?)
+      @top = !(params[:top].nil?)
+      @pbi = Issue.new
+      @pbi.project = @project
+      @pbi.author = User.current
+      @pbi.tracker_id = params['issue']['tracker_id']
+      update_attributes(@pbi, params)
+      if @top
+        @pbi.set_on_top
+        @pbi.save!
+      end
+      @pbi.sprint = @sprint
+      @pbi.save!
+    rescue Exception => @exception
+      logger.error("Exception: #{@exception.inspect}")
+    end
+  end
   def find_issues
     @issues = Issue.
       where(:id => (params[:id] || params[:ids])).
